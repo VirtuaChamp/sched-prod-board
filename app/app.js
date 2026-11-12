@@ -6,6 +6,8 @@ const list = document.querySelector('[data-testid="incident-list"]');
 const loader = document.querySelector('[data-testid="loader"]');
 const empty = document.querySelector('[data-testid="empty"]');
 const status = document.querySelector('[data-role="status"]');
+const newBar = document.querySelector('[data-testid="new-bar"]');
+newBar.addEventListener('click', showNew);
 
 const rows = new Map();
 const acked = new Map();
@@ -84,7 +86,9 @@ function updateRow(row, i) {
   row.querySelector('.what').textContent = `${i.service} · ${i.region} · ${i.summary}`;
 }
 
-function render(incidents) {
+let latest = [];
+
+const place = (incidents) => {
   const ids = new Set(incidents.map((i) => i.id));
   [...rows.keys()].filter((id) => !ids.has(id)).forEach((id) => {
     rows.get(id).remove();
@@ -96,7 +100,33 @@ function render(incidents) {
     rows.set(i.id, row);
     if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
   });
-  empty.hidden = incidents.length > 0;
+};
+
+function showBar(pending) {
+  const count = pending.length;
+  const sev1 = pending.filter((i) => i.severity === 'sev1').length;
+  newBar.hidden = count === 0;
+  newBar.classList.toggle('has-sev1', sev1 > 0);
+  newBar.textContent = count === 0 ? '' : `${count} new incident${count === 1 ? '' : 's'}${sev1 ? ` (${sev1} sev1)` : ''} · show`;
+}
+
+function render(incidents) {
+  latest = incidents;
+  const holdStill = rows.size > 0 && !document.hidden;
+  if (!holdStill) {
+    place(incidents);
+    showBar([]);
+  } else {
+    incidents.filter((i) => rows.has(i.id)).forEach((i) => updateRow(rows.get(i.id), i));
+    showBar(incidents.filter((i) => !rows.has(i.id)));
+  }
+  empty.hidden = rows.size > 0 || incidents.length > 0;
+}
+
+function showNew() {
+  place(latest);
+  showBar([]);
+  empty.hidden = latest.length > 0;
 }
 
 function setStatus(text) {
